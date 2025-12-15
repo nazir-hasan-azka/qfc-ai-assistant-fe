@@ -87,6 +87,7 @@ const config: Config = {
         'fade-in': 'fadeIn 0.3s ease-in-out',
         'fade-up': 'fadeUp 0.4s ease-out',
         'slide-in': 'slideIn 0.3s ease-out',
+        'spin-slow': 'spin 3s linear infinite',
       },
       keyframes: {
         fadeIn: {
