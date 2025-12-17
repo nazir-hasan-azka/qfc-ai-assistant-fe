@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { ArrowUp, ChevronDown, PlusCircle, X, FileText, Link as LinkIcon, Image as ImageIcon, Upload, Check, Loader2, Trash2 } from 'lucide-react'
+import { ArrowUp, ChevronLeft, PlusCircle, FileText, Link as LinkIcon, Image as ImageIcon, Check, Loader2, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 
 interface ChatInterfaceProps {
@@ -11,7 +11,6 @@ interface ChatInterfaceProps {
 }
 
 type ChatMode = 'consulting' | 'form'
-type ChatState = 'icon' | 'minimized' | 'expanded'
 type UploadTab = 'file' | 'url' | 'image'
 
 interface UploadedFile {
@@ -31,12 +30,22 @@ interface Message {
   timestamp: Date
 }
 
+const STEPS = [
+  { num: 1, label: 'Introduction' },
+  { num: 2, label: 'Legal' },
+  { num: 3, label: 'QFC Entity' },
+  { num: 4, label: 'Shareholders' },
+  { num: 5, label: 'Finance' },
+  { num: 6, label: 'Review' },
+]
+
 export function ChatInterface({ 
   className,
   iconPath = '/images/chatbot-icon.png' 
 }: ChatInterfaceProps) {
+  const [isOpen, setIsOpen] = useState(false)
   const [mode, setMode] = useState<ChatMode>('form')
-  const [chatState, setChatState] = useState<ChatState>('icon')
+  const [currentStep, setCurrentStep] = useState(1)
   const [inputValue, setInputValue] = useState('')
   const [uploadTab, setUploadTab] = useState<UploadTab>('file')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -45,7 +54,24 @@ export function ChatInterface({
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisProgress, setAnalysisProgress] = useState(0)
   const [showFileUpload, setShowFileUpload] = useState(false)
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      text: `Welcome to the Qatar Financial Centre (QFC).
+I'm your AI Assistant, here to help you complete the company incorporation process in a clear, structured, and efficient way.
+
+Here's how I will assist you:
+• I will guide you through each stage.
+• I will collect the documents needed for the application.
+• I will analyse the files you upload to understand your business model, legal structure, and expected activities.
+• I will pre-fill your entire application wherever possible — you will only review and confirm.
+
+Would you like to continue with AI assistance or complete the form manually?`,
+      sender: 'assistant',
+      timestamp: new Date()
+    }
+  ])
+  const [hasChosenPath, setHasChosenPath] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -76,7 +102,6 @@ export function ChatInterface({
   const handleSend = () => {
     if (!inputValue.trim()) return
     
-    // Add user message
     const userMessage: Message = {
       id: Date.now().toString(),
       text: inputValue,
@@ -85,11 +110,9 @@ export function ChatInterface({
     }
     setMessages(prev => [...prev, userMessage])
     
-    // Check if user is requesting file upload component
     if (inputValue.toLowerCase().trim() === 'file upload component') {
       setShowFileUpload(true)
       
-      // Add assistant response
       setTimeout(() => {
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
@@ -100,11 +123,10 @@ export function ChatInterface({
         setMessages(prev => [...prev, assistantMessage])
       }, 500)
     } else {
-      // Regular assistant response
       setTimeout(() => {
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
-          text: 'I received your message. Type "File Upload Component" to activate file upload functionality.',
+          text: 'I received your message. How can I help you further?',
           sender: 'assistant',
           timestamp: new Date()
         }
@@ -115,20 +137,46 @@ export function ChatInterface({
     setInputValue('')
   }
 
-  const handleIconClick = () => {
-    setChatState('expanded')
-  }
-
-  const handleMinimizeToggle = () => {
-    if (chatState === 'minimized') {
-      setChatState('expanded')
-    } else if (chatState === 'expanded') {
-      setChatState('minimized')
+  const handleUseAI = () => {
+    setHasChosenPath(true)
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text: 'Use AI',
+      sender: 'user',
+      timestamp: new Date()
     }
+    setMessages(prev => [...prev, userMessage])
+    
+    setTimeout(() => {
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: 'Great choice! Let\'s get started. I\'ll guide you through each step of the application process. First, let me collect some information about your company.',
+        sender: 'assistant',
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, assistantMessage])
+    }, 500)
   }
 
-  const handleClose = () => {
-    setChatState('icon')
+  const handleCompleteManually = () => {
+    setHasChosenPath(true)
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text: 'Complete manually',
+      sender: 'user',
+      timestamp: new Date()
+    }
+    setMessages(prev => [...prev, userMessage])
+    
+    setTimeout(() => {
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: 'No problem! You can complete the form manually. I\'ll still be here if you need any assistance along the way.',
+        sender: 'assistant',
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, assistantMessage])
+    }, 500)
   }
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,95 +264,74 @@ export function ChatInterface({
     return true
   }
 
-  // State 1: Circular Icon Button
-  if (chatState === 'icon') {
+  // Closed state - White sidebar with icon at top, arrow at bottom
+  if (!isOpen) {
     return (
-      <button
-        onClick={handleIconClick}
-        className={cn(
-          'fixed bottom-5 right-5 w-16 h-16 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 z-[1000]',
-          className
-        )}
-        aria-label="Open QFC Assistant"
-      >
-        <Image
-          src={iconPath}
-          alt="QFC Assistant"
-          width={64}
-          height={64}
-          className="w-16 h-16 rounded-full object-cover"
-        />
-      </button>
-    )
-  }
-
-  // State 2: Minimized Bar
-  if (chatState === 'minimized') {
-    return (
-      <div
-        className={cn(
-          'fixed bottom-0 right-5 bg-white shadow-[0_-4px_81px_#EFEFEF] flex flex-col transition-all duration-300 w-[200px] rounded-t-xl z-[1000]',
-          className
-        )}
-      >
-        <div className="flex flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-100 rounded-t-xl hover:bg-gray-50 transition-colors">
-          <button
-            onClick={handleMinimizeToggle}
-            className="flex flex-row items-center justify-between w-full"
-          >
-            <h2 className="text-sm font-semibold font-['Inter'] text-black">
-              QFC Assistant
-            </h2>
-            <ChevronDown className="w-4 h-4 text-gray-600 transition-transform" />
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // State 3: Expanded Widget
-  return (
-    <div
-      className={cn(
-        'fixed bottom-0 right-5 bg-white shadow-[0_-4px_81px_#EFEFEF] flex flex-col transition-all duration-300 w-[398px] rounded-t-2xl h-[699px] z-[1000]',
+      <div className={cn(
+        'fixed top-0 right-0 h-full bg-white shadow-[-4px_0_20px_rgba(0,0,0,0.08)] flex flex-col w-[80px] z-[1000]',
         className
-      )}
-    >
-      {/* Header */}
-      <div className="flex flex-row items-center justify-between px-4 py-4 bg-white border-b border-gray-100 rounded-t-2xl">
-        <h2 className="text-base font-semibold font-['Inter'] text-black">
-          QFC Assistant
-        </h2>
-
-        <div className="flex items-center gap-2">
+      )}>
+        <div className="flex-1 flex flex-col items-center justify-between py-6">
+          {/* AI Icon at TOP */}
           <button
-            onClick={handleMinimizeToggle}
-            className="p-1 hover:bg-gray-100 rounded transition-colors"
-            aria-label="Minimize chat"
+            onClick={() => setIsOpen(true)}
+            className="w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            aria-label="Open QFC Assistant"
           >
-            <ChevronDown className="w-5 h-5 text-gray-600 rotate-180 transition-transform" />
+            <Image
+              src={iconPath}
+              alt="QFC Assistant"
+              width={56}
+              height={56}
+              className="w-14 h-14 rounded-full object-cover"
+            />
           </button>
-          
+
+          {/* Arrow at BOTTOM */}
           <button
-            onClick={handleClose}
-            className="p-1 hover:bg-gray-100 rounded transition-colors"
-            aria-label="Close chat"
+            onClick={() => setIsOpen(true)}
+            className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+            aria-label="Expand chat"
           >
-            <X className="w-5 h-5 text-gray-600" />
+            <ChevronLeft className="w-6 h-6 text-gray-600" />
           </button>
         </div>
       </div>
+    )
+  }
 
-      {/* Mode Toggle */}
-      <div className="px-4 py-3 border-b border-gray-50">
-        <div className="flex flex-row justify-center items-center p-1 gap-1 bg-[#F5F0F4] rounded-xl">
+  // Opened state - Full chat panel (right sidebar)
+  return (
+    <div className={cn(
+      'fixed top-0 right-0 h-full bg-white shadow-[-4px_0_20px_rgba(0,0,0,0.08)] flex flex-col w-[520px] z-[1000]',
+      className
+    )}>
+      {/* Header - Full Width (No close button) */}
+      <div className="flex flex-row items-center px-5 py-4 bg-white border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <Image
+            src={iconPath}
+            alt="QFC Assistant"
+            width={32}
+            height={32}
+            className="w-8 h-8 rounded-full object-cover"
+          />
+          <h2 className="text-lg font-semibold font-['Inter'] text-black">
+            QFC Assistant
+          </h2>
+        </div>
+      </div>
+
+      {/* Mode Toggle - Full Width */}
+      <div className="px-5 py-3 bg-white">
+        <div className="flex flex-row justify-center items-center gap-2">
           <button
             onClick={() => setMode('consulting')}
             className={cn(
-              'flex-1 flex flex-row justify-center items-center px-5 py-2.5 gap-2 rounded-lg text-sm font-medium font-["Inter"] text-center transition-all',
+              'flex-1 flex flex-row justify-center items-center px-6 py-3 rounded-full text-sm font-medium font-["Inter"] text-center transition-all border',
               mode === 'consulting'
-                ? 'bg-[#7D6378] text-white shadow-sm'
-                : 'bg-transparent text-[#6B6B6B]'
+                ? 'bg-[#7D6378] text-white border-[#7D6378]'
+                : 'bg-white text-[#6B6B6B] border-gray-300 hover:bg-gray-50'
             )}
           >
             Consulting AI
@@ -312,10 +339,10 @@ export function ChatInterface({
           <button
             onClick={() => setMode('form')}
             className={cn(
-              'flex-1 flex flex-row justify-center items-center px-5 py-2.5 gap-2 rounded-lg text-sm font-medium font-["Inter"] text-center transition-all',
+              'flex-1 flex flex-row justify-center items-center px-6 py-3 rounded-full text-sm font-medium font-["Inter"] text-center transition-all border',
               mode === 'form'
-                ? 'bg-[#7D6378] text-white shadow-sm'
-                : 'bg-transparent text-[#6B6B6B]'
+                ? 'bg-[#7D6378] text-white border-[#7D6378]'
+                : 'bg-white text-[#6B6B6B] border-gray-300 hover:bg-gray-50'
             )}
           >
             Form Assistant
@@ -323,248 +350,65 @@ export function ChatInterface({
         </div>
       </div>
 
-      {/* Content Area */}
-      <div className="flex-1 flex flex-col overflow-y-auto scrollbar-custom bg-[#F9F9F9] rounded-2xl mx-3 mb-3 mt-2">
-        {mode === 'form' && showFileUpload ? (
-          /* Form Assistant - File Upload UI */
-          <div className="flex flex-col h-full p-4">
-            {isAnalyzing ? (
-              /* Analysis Loading Screen */
-              <div className="flex-1 flex flex-col items-center justify-center">
-                <p className="text-base font-medium text-gray-700 mb-8">
-                  This process may take a few moments
-                </p>
+      {/* Main Content Area - Split View */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Side - Vertical Step Indicator with Close Arrow at Bottom */}
+        <div className="w-24 flex-shrink-0 py-6 px-3 bg-white border-r border-gray-100 flex flex-col">
+          {/* Steps */}
+          <div className="flex flex-col items-center gap-1 flex-1">
+            {STEPS.map((step, idx) => (
+              <div key={step.num} className="flex flex-col items-center">
+                {/* Connector Line Above (except first) */}
+                {idx > 0 && (
+                  <div className={cn(
+                    'w-0.5 h-4',
+                    idx < currentStep ? 'bg-[#7D6378]' : 'bg-gray-300'
+                  )} />
+                )}
                 
-                <div className="relative w-48 h-48 mb-4">
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 opacity-80 animate-pulse" />
-                  
-                  <div className="absolute inset-2 rounded-full bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="text-5xl font-bold text-white mb-1">
-                        {analysisProgress}%
-                      </div>
-                      <div className="text-sm font-medium text-white/90">
-                        Analyzing
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-transparent via-white/20 to-transparent animate-spin-slow" />
+                {/* Step Circle */}
+                <div className={cn(
+                  'w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all',
+                  idx + 1 === currentStep && 'bg-[#7D6378] text-white',
+                  idx + 1 < currentStep && 'bg-[#7D6378] text-white',
+                  idx + 1 > currentStep && 'bg-gray-200 text-gray-500'
+                )}>
+                  {idx + 1 < currentStep ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    step.num
+                  )}
                 </div>
+                
+                {/* Step Label */}
+                <span className={cn(
+                  'text-[10px] font-medium mt-1 text-center leading-tight',
+                  idx + 1 === currentStep ? 'text-[#7D6378]' : 'text-gray-500'
+                )}>
+                  {step.label}
+                </span>
               </div>
-            ) : (
-              <>
-                {/* Step Indicator */}
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    {[
-                      { num: 1, label: 'Introduction', status: 'complete' },
-                      { num: 2, label: 'Legal', status: 'current' },
-                      { num: 3, label: 'QFC Entity', status: 'pending' },
-                      { num: 4, label: 'Shareholders', status: 'pending' },
-                      { num: 5, label: 'Financial Info', status: 'pending' },
-                      { num: 6, label: 'Review', status: 'pending' },
-                    ].map((step, idx) => (
-                      <div key={idx} className="flex flex-col items-center flex-1">
-                        <div className="flex items-center w-full">
-                          {idx > 0 && (
-                            <div className={cn(
-                              'flex-1 h-0.5',
-                              step.status === 'complete' ? 'bg-green-500' : 'bg-gray-300'
-                            )} />
-                          )}
-                          <div className={cn(
-                            'w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold',
-                            step.status === 'complete' && 'bg-green-500 text-white',
-                            step.status === 'current' && 'bg-yellow-400 text-white',
-                            step.status === 'pending' && 'bg-gray-300 text-gray-600'
-                          )}>
-                            {step.status === 'complete' ? <Check className="w-3 h-3" /> : step.num}
-                          </div>
-                          {idx < 5 && (
-                            <div className={cn(
-                              'flex-1 h-0.5',
-                              step.status === 'complete' ? 'bg-green-500' : 'bg-gray-300'
-                            )} />
-                          )}
-                        </div>
-                        <span className={cn(
-                          'text-[9px] font-medium mt-1 text-center',
-                          step.status === 'current' ? 'text-green-600' : 'text-gray-500'
-                        )}>
-                          {step.label}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Upload Area */}
-                <div className="flex-1 flex flex-col">
-                  <div className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center bg-white mb-4">
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileSelect}
-                      accept={uploadTab === 'image' ? 'image/*' : '.pdf,.jpg,.jpeg,.png'}
-                      className="hidden"
-                    />
-                    
-                    <button
-                      onClick={handleUploadClick}
-                      className="px-6 py-2 border-2 border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors mb-3"
-                    >
-                      Upload
-                    </button>
-
-                    <p className="text-base font-medium text-gray-900 mb-1">
-                      {selectedFile ? selectedFile.name : 'Choose file to upload'}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      PDF, JPG, JPEG, PNG.
-                    </p>
-                  </div>
-
-                  {/* Tab Buttons */}
-                  <div className="flex gap-2 mb-4">
-                    <button
-                      onClick={() => setUploadTab('file')}
-                      className={cn(
-                        'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all',
-                        uploadTab === 'file'
-                          ? 'bg-gray-100 border-gray-300 text-gray-900'
-                          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                      )}
-                    >
-                      <FileText className="w-4 h-4" />
-                      File
-                    </button>
-                    <button
-                      onClick={() => setUploadTab('url')}
-                      className={cn(
-                        'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all',
-                        uploadTab === 'url'
-                          ? 'bg-gray-100 border-gray-300 text-gray-900'
-                          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                      )}
-                    >
-                      <LinkIcon className="w-4 h-4" />
-                      URL
-                    </button>
-                    <button
-                      onClick={() => setUploadTab('image')}
-                      className={cn(
-                        'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all',
-                        uploadTab === 'image'
-                          ? 'bg-gray-100 border-gray-300 text-gray-900'
-                          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                      )}
-                    >
-                      <ImageIcon className="w-4 h-4" />
-                      Image
-                    </button>
-                  </div>
-
-                  {/* URL Input */}
-                  {uploadTab === 'url' && (
-                    <div className="mb-4">
-                      <input
-                        type="url"
-                        value={urlInput}
-                        onChange={(e) => setUrlInput(e.target.value)}
-                        placeholder="Enter URL..."
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-['Inter'] outline-none focus:border-[#7D6378] transition-colors"
-                      />
-                    </div>
-                  )}
-
-                  {/* Uploaded Files Grid */}
-                  {uploadedFiles.length > 0 && (
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                      {uploadedFiles.map((file) => (
-                        <div
-                          key={file.id}
-                          className="bg-white border border-gray-200 rounded-lg p-3 flex flex-col gap-2"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              {file.type === 'url' ? (
-                                <LinkIcon className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                              ) : file.type === 'image' ? (
-                                <ImageIcon className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                              ) : (
-                                <FileText className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                              )}
-                              <span className="text-sm font-medium text-gray-900 truncate">
-                                {file.name}
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => handleDeleteFile(file.id)}
-                              className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                          
-                          {file.type === 'url' && file.url ? (
-                            <a
-                              href={file.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-600 hover:underline truncate"
-                            >
-                              {file.url}
-                            </a>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-500">
-                                {file.size} / {file.maxSize}
-                              </span>
-                              {file.status === 'uploading' ? (
-                                <div className="flex items-center gap-1 text-xs text-gray-600">
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                  In progress
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-1 text-xs text-green-600">
-                                  <Check className="w-3 h-3" />
-                                  Completed
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Confirm Button */}
-                  <button
-                    onClick={handleConfirm}
-                    disabled={isConfirmDisabled()}
-                    className={cn(
-                      'w-full px-6 py-3 rounded-lg text-base font-medium transition-all',
-                      isConfirmDisabled()
-                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        : 'bg-[#7D6378] text-white hover:bg-[#6D5368]'
-                    )}
-                  >
-                    Confirm
-                  </button>
-                </div>
-              </>
-            )}
+            ))}
           </div>
-        ) : (
-          /* Chat Messages Area */
-          <div className="flex flex-col gap-4 p-4">
-            {messages.length === 0 ? (
-              <div className="text-sm text-[#6B6B6B] font-['Inter'] text-center py-8">
-                Type "File Upload Component" to activate file upload functionality.
-              </div>
-            ) : (
-              messages.map((message) => (
+
+          {/* Close Arrow at Bottom of Left Sidebar */}
+          <div className="flex justify-center pt-4">
+            <button
+              onClick={() => setIsOpen(false)}
+              className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+              aria-label="Collapse chat"
+            >
+              <ChevronLeft className="w-6 h-6 text-gray-500 rotate-180" />
+            </button>
+          </div>
+        </div>
+
+        {/* Right Side - Chat Content */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-[#FAFAFA]">
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto px-4 py-4">
+            <div className="flex flex-col gap-4">
+              {messages.map((message) => (
                 <div
                   key={message.id}
                   className={cn(
@@ -573,64 +417,87 @@ export function ChatInterface({
                   )}
                 >
                   {/* Avatar */}
-                  <div className={cn(
-                    'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
-                    message.sender === 'user' ? 'bg-blue-500' : 'bg-purple-500'
-                  )}>
-                    <span className="text-white text-xs font-semibold">
-                      {message.sender === 'user' ? 'U' : 'A'}
-                    </span>
-                  </div>
+                  {message.sender === 'assistant' && (
+                    <Image
+                      src={iconPath}
+                      alt="AI"
+                      width={32}
+                      height={32}
+                      className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                    />
+                  )}
                   
                   {/* Message Bubble */}
                   <div className={cn(
-                    'max-w-[75%] px-4 py-2.5 rounded-2xl text-[15px] font-["Inter"]',
+                    'max-w-[85%] text-[14px] font-["Inter"] leading-relaxed whitespace-pre-line',
                     message.sender === 'user'
-                      ? 'bg-[#7D6378] text-white rounded-tr-sm'
-                      : 'bg-white text-gray-900 rounded-tl-sm'
+                      ? 'bg-[#7D6378] text-white px-4 py-2.5 rounded-2xl rounded-tr-sm'
+                      : 'text-gray-700'
                   )}>
                     {message.text}
                   </div>
                 </div>
-              ))
-            )}
-            <div ref={messagesEndRef} />
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Input Area */}
-      <div className="flex flex-col items-center px-4 pb-4 gap-2 bg-white">
-        <div className="flex flex-row items-center w-full gap-2">
-          <div className="flex-1 flex flex-row items-center px-4 py-2.5 gap-3 bg-[#F5F5F5] rounded-full">
-            <div className="flex-none">
+      {/* Bottom Action Area - Full Width */}
+      <div className="bg-white border-t border-gray-100 px-4 py-4">
+        {!hasChosenPath ? (
+          /* Initial Choice Buttons - Full Width */
+          <div className="flex items-center gap-3">
+            {/* Action Buttons - Take full space */}
+            <button
+              onClick={handleUseAI}
+              className="flex-1 px-6 py-3 bg-[#7D6378] text-white rounded-full text-sm font-medium hover:bg-[#6D5368] transition-colors"
+            >
+              Use AI
+            </button>
+            
+            <button
+              onClick={handleCompleteManually}
+              className="flex-1 px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-full text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              Complete manually
+            </button>
+          </div>
+        ) : (
+          /* Chat Input - Full Width */
+          <div className="flex items-center gap-3">
+            {/* Input Field - Takes full space */}
+            <div className="flex-1 flex flex-row items-center px-4 py-2.5 gap-3 bg-[#F5F5F5] rounded-full">
               <PlusCircle 
-                className="w-4 h-4 text-[#A6A6A6]" 
+                className="w-5 h-5 text-[#A6A6A6] cursor-pointer hover:text-gray-600 flex-shrink-0" 
                 strokeWidth={1.5}
               />
+              
+              <input
+                type="text"
+                placeholder="Ask me"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                className="flex-1 text-[14px] font-normal font-['Inter'] text-gray-700 bg-transparent outline-none placeholder:text-[#A6A6A6]"
+              />
             </div>
-            
-            <input
-              type="text"
-              placeholder="Ask me"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-              className="flex-1 text-[13px] font-normal font-['Inter'] text-[#6B6B6B] bg-transparent outline-none placeholder:text-[#A6A6A6]"
-            />
+
+            {/* Send Button */}
+            <button
+              onClick={handleSend}
+              disabled={!inputValue.trim()}
+              className="w-10 h-10 flex items-center justify-center bg-[#F5F5F5] rounded-full hover:bg-[#ECECEC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+              aria-label="Send message"
+            >
+              <ArrowUp className="w-5 h-5 text-[#8B8B8B]" strokeWidth={2} />
+            </button>
           </div>
-
-          <button
-            onClick={handleSend}
-            disabled={!inputValue.trim()}
-            className="flex flex-row justify-center items-center w-10 h-10 bg-[#F5F5F5] rounded-full hover:bg-[#ECECEC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Send message"
-          >
-            <ArrowUp className="w-5 h-5 text-[#8B8B8B]" strokeWidth={2} />
-          </button>
-        </div>
-
-        <p className="text-[11px] font-normal font-['Inter'] text-[#A6A6A6] text-center">
+        )}
+        
+        {/* Disclaimer - Full Width */}
+        <p className="text-[11px] font-normal font-['Inter'] text-[#A6A6A6] text-center mt-3">
           AI can make mistakes, so double-check it
         </p>
       </div>
