@@ -323,7 +323,7 @@ Ctrl+Shift+P > "TypeScript: Restart TS Server"
 
 - **Project**: QFC AI Assistant
 - **Client**: Qatar Financial Centre
-- **Tech Lead**: [Your Name]
+- **Tech Lead**: [Nazir Hasan]
 
 ## 📄 License
 
